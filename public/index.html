@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat en Tiempo Real</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #2c3e50;
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        h1 {
+            text-align: center;
+            color: #66fcf1;
+            margin-top: 20px;
+        }
+        #login, #chatContainer {
+            text-align: center;
+            width: 80%; /* Ancho del contenedor principal */
+            max-width: 800px; /* Ancho máximo */
+            margin: 20px auto; /* Centrar el contenedor */
+        }
+        #chat {
+            height: 400px;
+            overflow-y: scroll;
+            border: 1px solid #bdc3c7;
+            margin-bottom: 10px;
+            padding: 10px;
+            border-radius: 5px;
+            background-color: #34495e;
+            width: 100%;
+        }
+        #sidebar {
+            display: inline-block;
+            width: 25%;
+            padding-left: 10px;
+        }
+        input[type="text"] {
+            width: calc(100% - 22px);
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #66fcf1;
+            border-radius: 5px;
+            background-color: #444;
+            color: #fff;
+            font-size: 16px;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #66fcf1;
+            color: #222;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            width: 100%;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #5bc8d4;
+        }
+        #users {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Chat en Tiempo Real</h1>
+
+    <div id="login">
+        <input type="text" id="username" placeholder="Escribe tu nombre..." required>
+        <button onclick="login()">Entrar al chat</button>
+    </div>
+
+    <div id="chatContainer" style="display:none;">
+        <div style="display: flex; justify-content: space-between;">
+            <div id="chat"></div>
+            <div id="sidebar">
+                <h2>Usuarios en línea</h2>
+                <ul id="users"></ul>
+            </div>
+        </div>
+        <input type="text" id="message" placeholder="Escribe tu mensaje..." required>
+        <button onclick="sendMessage()">Enviar</button>
+    </div>
+
+    <script>
+        let username = "";
+        let users = [];
+
+        function login() {
+            username = document.getElementById('username').value.trim();
+            if (username) {
+                document.getElementById('login').style.display = 'none';
+                document.getElementById('chatContainer').style.display = 'block';
+
+                addUser(username);
+                startPolling();
+            }
+        }
+
+        function addUser(user) {
+            fetch('/users', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ username: user }),
+            });
+        }
+
+        function sendMessage() {
+            const message = document.getElementById('message').value.trim();
+            if (message) {
+                fetch('/send', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ message: `${username}: ${message}` }),
+                }).then(() => {
+                    document.getElementById('message').value = '';
+                });
+            } else {
+                alert("Por favor, escribe un mensaje antes de enviar.");
+            }
+        }
+
+        function startPolling() {
+            function poll() {
+                fetch('/messages')
+                    .then(response => response.json())
+                    .then(data => {
+                        const chat = document.getElementById('chat');
+                        chat.innerHTML = '';
+                        data.forEach(msg => {
+                            chat.innerHTML += `<p>${msg}</p>`;
+                        });
+                        chat.scrollTop = chat.scrollHeight;
+                    });
+
+                fetch('/users')
+                    .then(response => response.json())
+                    .then(data => {
+                        users = data;
+                        updateUsersList();
+                    })
+                    .finally(() => {
+                        setTimeout(poll, 1000);
+                    });
+            }
+            poll();
+        }
+
+        function updateUsersList() {
+            const usersList = document.getElementById('users');
+            usersList.innerHTML = '';
+            users.forEach(user => {
+                usersList.innerHTML += `<li>${user}</li>`;
+            });
+        }
+
+        window.addEventListener('beforeunload', () => {
+            fetch('/removeUser', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ username: username }),
+            });
+        });
+    </script>
+</body>
+</html>
