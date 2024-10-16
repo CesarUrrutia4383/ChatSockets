@@ -2,7 +2,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const net = require('net'); // Importar net para manejar conexiones TCP
 const app = express();
-const port = 3001;
+const port = 4000;
 
 // Array para almacenar los mensajes y usuarios
 let messages = [];
